@@ -1,4 +1,6 @@
-BuddyUp Core codebase.
+BuddyUp API and celery workers.
+
+(Cleanup for the below is coming!)
 
 # Get up and running:
 
