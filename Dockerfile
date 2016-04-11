@@ -33,7 +33,6 @@ RUN pip3 install --upgrade pip
 WORKDIR /code
 
 # Set up reqs
-COPY bower.json /code/bower.json
 COPY requirements.txt /code/requirements.txt
 RUN pip3 install -r requirements.txt
 
