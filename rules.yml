@@ -1,0 +1,742 @@
+# todo: make examples
+# examples:
+#     - {"123": {"profile": {"public": {first_name: "Sally"}}}}
+#     - {"123": {"profile": {
+#         "public": {
+#             first_name: "Joe",
+#             last_name: "Williams",
+#             is_buddy: false,
+#             is_me: false,
+#             profile_pic_full_url: "http://buddyup.aws.amazon.com/users/19238zjkaf/full.jpg",
+#             profile_pic_lg_url: "http://buddyup.aws.amazon.com/users/19238zjkaf/lg.jpg",
+#             profile_pic_md_url: "http://buddyup.aws.amazon.com/users/19238zjkaf/md.jpg",
+#             profile_pic_sm_url: "http://buddyup.aws.amazon.com/users/19238zjkaf/sm.jpg"
+#         },
+#         primary_email: "joe@example.edu",
+#         blocked_users: {"123": true}
+#       }}}
+# nonexamples:
+#     - {"123": {first_name: "Sally", "bonus_data": "some"}}
+#     - {"123": {"profile": {first_name: "Sally", "bonus_data": "some"} }}
+#     - {primary_email: "foo@skaldfj"}
+
+functions:
+    # Basic
+    - isLoggedIn(): auth.buid !== null
+    - isUser(user_id): auth.buid == user_id
+    - isStaff(): auth.is_staff == true
+    - isCreator(): (auth.buid == prev.creator) || (prev == null && auth.buid == next.creator)
+    - isCreatorOfParent(): (auth.buid == prev.parent.creator) || (prev == null && auth.buid == next.parent.creator)
+    - onlyFirstWrite(): prev == null
+
+    # Threads and events
+    # - threadVisible(thread_id): thread_id.indexOf(auth.buid) != -1
+    - threadVisible(): (auth.buid == prev.profile.recipient || (prev == null && auth.buid == next.profile.recipient)) || (auth.buid == prev.profile.sender || (prev == null && auth.buid == next.profile.sender))
+    - readThreadVisible(thread_id): root.message_threads[thread_id].profile.sender == auth.buid || root.message_threads[thread_id].profile.recipient == auth.buid
+    - eventVisible(event_id): root.users[auth.buid].news_feed[event_id].exists() == true || (root.events[event_id].exists() == true && auth.buid == root.events[event_id].creator) || isStaff()
+    - eventWriteable(event_id): eventVisible(event_id)  || (next.event_id != null && root.users[auth.buid].events[next.event_id].exists() == true)
+    - isCommenter(): (prev == null && next.commenter == auth.buid) || (prev.commenter == auth.buid)
+
+    # Users
+    - isUserOrBuddy(user_id): isUser(user_id) || (isLoggedIn() && root.users[user_id].buddies[auth.buid].exists() == true)
+    - isBuddy(buid): root.users[buid].buddies[auth.buid].exists() == true
+    - isNotBlockedBy(user_id): root.users[user_id].private.blocked_users[auth.buid] !== true
+    - schoolmate(uid): root.users[auth.buid].schoolmates[uid].exists() == true
+
+    # School-based
+    - attendsProfilesSchool(): root.users[auth.buid].schools[prev.profile.school_id].exists() == true
+    - attendsThisSchool(school_id): auth.is_staff == true || root.schools[school_id].students[auth.buid].exists() == true
+    - attendsThisGroupsSchool(group_id): root.schools[root.groups[group_id].profile.school_id].students[auth.buid].exists() == true
+    - attendsClassesSchool(class_id): root.schools[root.classes[class_id].profile.school_id].students[auth.buid].exists() == true
+
+    # Group-based
+    - groupVisible(): prev.visible_to == "public" || auth.buid == prev.creator || root.users[prev.creator].buddies[auth.buid].exists() == true
+    - isNotBlockedByAttendees(): prev.private.blocked_users[auth.buid].exists() == false
+    - createdThisGroup(): prev.creator == auth.buid
+    - attendsThisGroup(group_id): root.users[auth.buid].groups[group_id].exists() == true
+
+    # Class-based
+    - inClass(class_id): root.classes[class_id].students[auth.buid].exists() == true
+
+schema:
+    definitions:
+        PublicProfile:
+            # Denormalized info for rendering uesrs outside of their detail pages,
+            # to people who aren't their buddies, but do attend their school.
+            type: object
+            # constraint: isUser($user_id)
+            # additionalProperties: false
+            indexOn: ["first_name", "order"]
+            properties:
+                first_name: {type: string}
+                last_name: {type: string}
+                profile_pic: {type: string}
+                profile_pic_url_tiny: {type: string}
+                profile_pic_url_medium: {type: string}
+                changed_at: {type: number}  # timestamp
+                order: {type: number}
+
+        GroupInfo:
+            # Denormalized info for rendering groups outside of their detail pages
+            type: object
+            # additionalProperties: false
+            indexOn: [order, name, school_id, course_id, starts_at, ends_at]
+            properties:
+                order: {type: number}  # 1/starts_at
+                name: {type: string}
+                creator: {type: string}
+                school_id: {type: string}
+                course_id: {type: string}
+                subject_code: {type: string}
+                code: {type: string}
+                where: {type: string}
+                starts_at: {type: string}
+                ends_at: {type: string}
+                icon: {type: string}
+                max_number: {type: string}
+
+        ClassInfo:
+            # Denormalized info for rendering classes outside of their detail pages
+            type: object
+            # additionalProperties: false
+            indexOn: [order, name, school_id, subject_id, course_id, starts_at, ends_at]
+            properties:
+                # order: {type: number}  # 1/starts_at
+                school_id: {type: string}
+                subject_id: {type: string}
+                subject_name: {type: string}
+                subject_icon: {type: string}
+                subject_code: {type: string}
+                code: {type: string}
+                name: {type: string}
+                term_id: {}
+                term_name: {type: string}
+                term_start: {type: number}  # timestamp
+                term_end: {type: number}  # timestamp
+
+        Event:
+            type: object
+            # additionalProperties: false
+            constraint: onlyFirstWrite()
+            indexOn: [order,]
+            properties:
+                order: { type: number }  # 1/created_at
+                buid: { type: string }
+                creator: { type: string }
+                created_at: { type: number }  # timestamp
+                data: { type: object }
+                event_id: { type: string }
+                first_name: { type: string }
+                last_name: { type: string }
+                involved: { type: object }
+
+
+        NotificationPreference:
+            type: object
+            # additionalProperties: false
+            properties:
+                email: {type: boolean}
+                push: {type: boolean}
+
+    # Schema
+    type: object
+    properties:
+        events:
+            type: object
+            constraint: isLoggedIn()
+            indexOn: ["order", "type", "creator"]
+            ~$event_id: {$ref: "#/definitions/Event" }
+
+        # event_meta:
+        #     type: object
+        #     # constraint: isStaff()
+        #     ~$event_id: 
+        #         type: object
+        #         properties:
+        #             hearts:
+        #                 ~$user_id:
+        #                     constraint: isUser($user_id)
+        #                     type: boolean
+
+        analytics:
+            type: object
+            constraint: isStaff()
+            properties:
+                classes:
+                    indexOn: school
+                    type: object
+                    constraint: isStaff()
+                    $class_id:
+                        type: object
+                        constraint: isStaff()
+
+            # additionalProperties: false
+
+        history:
+            type: object
+            constraint: false
+            # additionalProperties: false
+
+
+
+        overrides:
+            type: object
+            constraint: false
+            # additionalProperties: false
+
+
+        dev:
+            type: object
+            constraint: false
+            # additionalProperties: false
+            properties:
+                in_dev_mode: {type: boolean}
+
+        reported:
+            type: object
+            constraint: false
+            # additionalProperties: false
+            ~$event_id:
+                type: object
+                constraint: false
+                ~$user_id:
+                    type: object
+
+        push:
+            type: object
+            # additionalProperties: false
+            $push_token:
+                type: object
+                $user_id:
+                    constraint: isUser($user_id)
+
+        pictures:
+            type: object
+            constraint: isLoggedIn()
+            ~$pic_id:
+                type: object
+                constraint: isCreator()
+                # additionalProperties: false
+                properties:
+                    src: {type: string}
+                    creator: {type: string}
+        users:
+            type: object
+
+            $user_id:
+                type: object
+                # additionalProperties: false
+                properties:
+                    internal:
+                        type: object
+                        constraint: false
+                    public: {$ref: "#/definitions/PublicProfile" }
+                    pictures: 
+                        type: object
+                        constraint: isUser($user_id)
+                        properties:
+                            original: {type: string}
+                            medium: {type: string}
+                            tiny: {type: string}
+                    private: 
+                        type: object
+                        constraint: isUser($user_id)
+                        properties:
+                            agreed_to_terms: {type: boolean}
+                            opt_in_to_school_updates: {type: boolean}
+                            primary_email: {type: string}
+                            email_verified: {type: boolean}
+                            emails: {type: object}
+                            blocked_users: {type: object}  # key is uid, val is true/false
+                            schools: {type: object}  # list of school ids
+                            last_reads: {type: object}
+                            settings: {type: object}
+                            notification_preferences: 
+                                type: object
+                                properties:
+                                    buddy_request: {$ref: "#/definitions/NotificationPreference" }
+                                    buddy_confirmed: {$ref: "#/definitions/NotificationPreference" }
+                                    new_private_message: {$ref: "#/definitions/NotificationPreference" }
+                                    new_group: {$ref: "#/definitions/NotificationPreference" }
+                                    my_group_soon: {$ref: "#/definitions/NotificationPreference" }
+                            buddy_search:
+                                type: object
+                                properties:
+                                    filter: {type: object}
+                                    matches: {type: object}
+                    buddies:
+                        type: object
+                        indexOn: ["order",]
+                        constraint: isUser($user_id)
+                        ~$buddy_uid: 
+                            type: object
+                            properties:
+                                profile: {$ref: "#/definitions/PublicProfile" }
+                    buddy_requests:
+                        type: object
+                        indexOn: ["order",]
+                        ~$buddy_uid: 
+                            type: object
+                            indexOn: order
+                            constraint: isUser($buddy_uid) || isUser($user_id)
+                            properties:
+                                user_id: {type: string}
+                                requested_at: {type: number}  # timestamp
+                                ignored: {type: boolean}
+                                ignored_at: {type: number}  # timestamp
+                                order: {type: number}  # 1/timestamp
+                    # Might be killing this.
+                    # schoolmates:
+                    #     type: object
+                    #     ~$schoolmate_uid: {type: boolean}
+
+                    events:
+                        type: object
+                        indexOn: ["order",]
+                        constraint: isUser($user_id)
+                        ~$eid: {$ref: "#/definitions/Event" }
+
+                    my_hearts:
+                        type: object
+                        # TODO: expand this?
+                        indexOn: ["order",]
+                        constraint: isUser($user_id)
+                        ~$heart_id: {$ref: "#/definitions/Event" }
+
+                    buddies_hearts:
+                        type: object
+                        # TODO: expand this?
+                        indexOn: ["order",]
+                        constraint: isUser($user_id)
+                        ~$heart_id: {$ref: "#/definitions/Event" }
+                    classes:
+                        type: object
+                        indexOn: [order, name, school_id, subject_id, course_id, starts_at, ends_at]
+                        constraint: isUser($user_id)
+                        ~$class_id: {$ref: "#/definitions/ClassInfo"}
+
+                    groups:
+                        type: object
+                        constraint: isUser($user_id)
+                        indexOn: [start, end]
+                        ~$group_id: {$ref: "#/definitions/GroupInfo"}
+
+                    schools:
+                        type: object
+                        indexOn: name
+                        constraint: isUser($user_id)
+                        ~$school_id:
+                            type: object
+                            properties:
+                                name: {type: string}
+                                short_name: {type: string}
+                                logo_url: {type: string}
+                    inbox:
+                        type: object
+                        constraint: isUser($user_id)
+                        ~$partner_id:
+                            type: object
+                            indexOn: order
+                            properties:
+                                order: {type: number}  # 1/last_message_at
+                                with: {$ref: "#/definitions/PublicProfile" }
+                                last_message_at: {type: number}
+                                last_message_body: {type: string}
+                                partner_id: {type: string}
+                                thread_id: {type: string}
+                    news_feed:
+                        type: object
+                        indexOn: order
+                        constraint: isUser($user_id)
+                        ~$event_id: {$ref: "#/definitions/Event" }
+
+
+        event_meta:
+            type: object
+            $event_id:
+                type: object
+                # constraint: eventWriteable($event_id)
+                properties:
+                    reported: 
+                        type: object
+                        ~$user_id: 
+                            constraint: isUser($user_id)
+                            type: boolean
+                    hearts: 
+                        type: object
+                        ~$user_id: 
+                            constraint: isUser($user_id)
+                            type: boolean
+                    comments:
+                        type: object
+                        indexOn: order
+                        ~$comment_id:
+                            type: object
+                            constraint: isCommenter()
+                            properties:
+                                commenter: {$ref: "#/definitions/PublicProfile" }
+                                body: {type: string}
+                                sent_at: {type: number}  # timestamp
+                                order: {type: number}  # 1/timestamp
+
+        message_threads:
+            type: object
+            constraint: isLoggedIn()
+            $thread_id: 
+                type: object
+                # additionalProperties: false
+                constraint: threadVisible()
+                properties:
+                    profile:
+                        type: object
+                        # additionalProperties: false
+                        properties:
+                            sender: {type: string}
+                            recipient: {type: string}
+                    messages:
+                        type: object
+
+                        ~$message_id: 
+                            type: object
+                            # additionalProperties: false
+                            properties:
+                                body: {type: string}
+                                sender: {type: string}
+                                sent_at: {type: number}  # timestamp
+
+        classes:
+            type: object
+            constraint: isLoggedIn()
+            $class_id:
+                type: object
+                constraint: isLoggedIn()
+                # additionalProperties: false
+                properties:
+                    # analytics:
+                    #     constraint: isStaff()
+                    profile: {$ref: "#/definitions/ClassInfo"}
+                    news_feed:
+                        type: object
+                        constraint: isLoggedIn()
+                        indexOn: ["order", "created_at"]
+                        ~$event_id: {$ref: "#/definitions/Event" }
+                    groups:
+                        type: object
+                        indexOn: ["order", "created_at", "start", "end"]
+                        ~$group_id: {$ref: "#/definitions/GroupInfo"}
+                    students:
+                        type: object
+                        indexOn: ["name",]
+                        ~$user_id: {$ref: "#/definitions/PublicProfile"}
+
+
+        groups:
+            type: object
+            constraint: isLoggedIn()
+            indexOn: [start, end]
+            $group_id:
+                type: object
+                # additionalProperties: false
+                constraint: isLoggedIn()
+                indexOn: [start, end]
+                properties:
+                    start: {type: number}
+                    end: {type: number}
+                    profile: 
+                        type: object
+                        # additionalProperties: false
+                        properties:
+                            visible_to: {type: string} # buddies or school 
+                            school_id: {type: string}
+                            name: {type: string}
+                            class_name: {type: string}
+                            class_long_name: {type: string}
+                            term_name: {type: string}
+                            icon: {type: string}
+                            starts: {type: number}
+                            ends: {type: number}
+                            blocked_users: 
+                                type: object
+                                ~$user_id: {type: boolean}
+                            attending: 
+                                type: object
+                                ~$user_id: {type: object}
+                    news_feed:
+                            type: object
+                            indexOn: ["order",]
+                            ~$event_id: 
+                                type: object
+                                # additionalProperties: false
+                                constraint: onlyFirstWrite() || isCreator()
+                                indexOn: [order,]
+                                properties:
+                                    order: { type: number }  # 1/created_at
+                                    buid: { type: string }
+                                    creator: { type: string }
+                                    created_at: { type: number }  # timestamp
+                                    data: { type: object }
+                                    event_id: { type: string }
+                                    first_name: { type: string }
+                                    last_name: { type: string }
+                                    involved: { type: object }
+
+        schools:
+            type: object
+            ~$school_id:
+                type: object
+                # additionalProperties: false
+                constraint: attendsThisSchool($school_id)
+                properties:
+                    profile: 
+                        type: object
+                        # additionalProperties: false
+                        indexOn: ["name", "active"]
+                        # TODO: This is a security hole for a rogue actor, but
+                        # blaze is broken, so we don't have a way around it for now.
+                        # constraint: isStaff()
+                        properties:
+                            name: {type: string}
+                            active: {type: boolean}
+                            short_name: {type: string}
+                            email_suffix: {type: string}
+                            city: {type: string}
+                            state: {type: string}
+                            website: {type: string}
+                            primary_color: {type: string}
+                            secondary_color: {type: string}
+                            logo_id: {type: string}
+                            terms:
+                                type: object
+                                indexOn: [end, ]
+                                ~$term_id:
+                                    type: object
+                                    properties:
+                                        name: {type: string}
+                                        start: {type: number}
+                                        end: {type: number}
+                                        break_start: {type: number}
+                                        break_end: {type: number}
+                    classes:
+                        type: object
+                        # constraint: attendsThisSchool($school_id)
+                        indexOn: [order, name, school_id, subject_id, course_id, starts_at, ends_at]
+                        ~$class_id: {$ref: "#/definitions/ClassInfo"}
+                    subjects:
+                        constraint: attendsThisSchool($school_id)
+                        type: object
+                        indexOn: name
+                        ~$subject_id: 
+                            type: object
+                            properties:
+                                name: {type: string}
+                                icon: {type: string}
+                                code: {type: string}
+                    groups:
+                        type: object
+                        constraint: attendsThisSchool($school_id)
+                        indexOn: [order, name, school_id, course_id, start, end]
+                        ~$group_id: {$ref: "#/definitions/GroupInfo"}
+
+                    students:
+                        type: object
+                        ~$user_id: 
+                            constraint: isUser($user_id)
+                            type: boolean
+
+access:
+    -   location:   "/"
+        read:       isStaff()
+        write:      true
+
+    -   location:   "/pictures"
+        read:       true
+
+    -   location:   "/dev"
+        read:       true
+
+    -   location:   "/analytics"
+        read:       isLoggedIn()
+        write:      isStaff()
+
+    -   location:   "/analytics/classes/$class_id"
+        read:       isStaff()
+        write:      isStaff()
+
+
+    -   location:   "/history"
+        read:       isStaff()
+
+    -   location:   "/push"
+        read:       false
+
+    -   location:   "/events"
+        read:       isStaff()
+
+    -   location:   "/reported"
+        read:       isStaff()
+
+    -   location:   "/events/$event_id"
+        read:       eventVisible($event_id) || isStaff()
+
+    -   location:   "/event_meta"
+        read:       isStaff()
+
+    -   location:   "/event_meta/$event_id"
+        read:       isLoggedIn()
+
+    # -   location:   "/event_meta/$event_id"
+    #     read:       eventVisible($event_id)
+
+    -   location:   "/overrides"
+        read:       true
+        write:      false
+
+
+    # Schools
+    -   location:   "/schools"
+        read:       true
+
+    -   location:   "/schools/$school_id/classes"
+        read:       attendsThisSchool($school_id) || isStaff()
+
+    -   location:   "/schools/$school_id/groups"
+        read:       attendsThisSchool($school_id) || isStaff()
+
+
+    -   location:   "/schools/$school_id/subjects"
+        read:       attendsThisSchool($school_id) || isStaff()
+
+
+    -   location:   "/schools/$school_id/students/$user_id"
+        read:       "(attendsThisSchool($school_id) && isNotBlockedBy($user_id)) || isStaff()"
+
+
+    # Groups
+    -   location:   "/groups/$group_id"
+        read:       attendsThisGroupsSchool($group_id) || isStaff()
+
+    -   location:   "/groups/$group_id/news_feed"
+        read:       "(attendsThisGroup($group_id) && isNotBlockedByAttendees()) || isStaff()"
+        # write:      "(attendsThisGroupsSchool($group_id) && isNotBlockedByAttendees()) || isStaff()"
+
+    -   location:   "/groups/$group_id/profile"
+        read:       "(attendsThisGroupsSchool($group_id) && isNotBlockedByAttendees()) || isStaff()"
+        # write:      createdThisGroup($group_id)
+
+    -   location:   "/groups/$group_id/profile/attending/$uid/"
+        read:       "(attendsThisGroupsSchool($group_id) && isNotBlockedByAttendees()) || isStaff()"
+        # write:      "attendsThisSchool($sid) && isNotBlockedByAttendees() && isUser($uid)"
+
+    # Message Threads
+    -   location:   "/message_threads"
+        read:       isStaff()
+        # write:      isStaff()
+
+    -   location:   "/message_threads/$thread_id/"
+        read:       readThreadVisible($thread_id) || isStaff()
+
+
+    # Classes
+    -   location:   "/classes"
+        # read:       true
+        # write:      isStaff()
+
+    -   location:   "/classes/$class_id"
+        read:       inClass($class_id) || isStaff()
+
+    -   location:   "/classes/$class_id/profile"
+        read:       isLoggedIn()
+        # read:       "attendsProfilesSchool() || inClass($class_id)"
+
+
+    -   location:   "/classes/$class_id/news_feed"
+        read:       attendsClassesSchool($class_id) || isStaff()
+
+    -   location:   "/classes/$class_id/groups"
+        read:       attendsClassesSchool($class_id) || isStaff()
+
+    -   location:   "/classes/$class_id/students"
+        read:       attendsClassesSchool($class_id) || isStaff()
+
+    -   location:   "/classes/$class_id/news_feed/$event_id"
+        read:       inClass($class_id) || isStaff()
+
+    -   location:   "/classes/$class_id/groups/$group_id"
+        read:       inClass($class_id) || isStaff()
+
+    -   location:   "/classes/$class_id/students/$user_id"
+        read:       "(inClass($class_id) && isNotBlockedBy($user_id))  || isStaff()"
+
+
+    # User Privacy
+    -   location:   "/users/$user_id"
+        read:       isNotBlockedBy($user_id)
+
+    -   location:   "/users/$user_id/private"
+        read:       isUser($user_id) || isStaff()
+
+    -   location:   "/users/$user_id/buddy_search"
+        read:       isUser($user_id) || isStaff()
+
+    -   location:   "/users/$user_id/buddy_search"
+        read:       isUser($user_id) || isStaff()
+
+    -   location:   "/users/$user_id/events"
+        read:       isUser($user_id) || isStaff()
+
+    -   location:   "/users/$user_id/my_hearts"
+        read:       isUser($user_id) || isStaff()
+
+    -   location:   "/users/$user_id/buddies_hearts"
+        read:       isUser($user_id) || isStaff()
+
+    -   location:   "/users/$user_id/properties"
+        read:       isUser($user_id) || isStaff()
+
+    -   location:   "/users/$user_id/inbox"
+        read:       isUser($user_id) || isStaff()
+
+    -   location:   "/users/$user_id/news_feed"
+        read:       isUser($user_id) || isStaff()
+
+    -   location:   "/users/$user_id/groups"
+        read:       isUser($user_id) || isStaff()
+
+    -   location:   "/users/$user_id/internal"
+        read:       isUser($user_id) || isStaff()
+
+
+    # Other users at the school can see
+    -   location:   "/users/$user_id/public"
+        read:       "(isLoggedIn($user_id) && isNotBlockedBy($user_id)) || isStaff()"
+        # write:      "isUser($user_id)"
+
+    -   location:   "/users/$user_id/buddies"
+        # TODO: figure this out
+        read:       "isLoggedIn()"
+        # write:      "isUser($user_id)"
+
+    -   location:   "/users/$user_id/classes"
+        # TODO: figure this out
+        read:       "isLoggedIn()"
+        # write:      "isUser($user_id)"
+
+    # -   location:   "/users/$user_id/buddy_requests"
+    #     read:       true
+
+
+    -   location:   "/users/$user_id/buddy_requests"
+        read:       isUser($user_id) || isStaff()
+
+    -   location:   "/users/$user_id/buddy_requests/$buddy_uid"
+        read:       isUser($buddy_uid) || isUser($user_id)  || isStaff()
+        # write:      isStaff()
+
+
+    -   location:   "/users/$user_id/schools"
+        read:       "isUserOrBuddy($user_id)  || isStaff()"
+        # write:      "isUser($user_id)"
+
+    -   location:   "/users/$user_id/groups/$sid"
+        read:       "(isUserOrBuddy($user_id) && groupVisible($sid)) || isStaff()"
+        # write:      "isUser($user_id)"

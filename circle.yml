@@ -1,0 +1,52 @@
+machine:
+    # post:
+    #     - pyenv global 3.4.3
+    python:
+        version: 3.4.3
+    node:
+        version: 4.3.1
+    hosts:
+        test.firebase.localhost: 127.0.0.1
+        dev.mycompany.com: 127.0.0.1
+        app.bu: 127.0.0.1
+        api.bu: 127.0.0.1
+
+dependencies:
+  # cache_directories:
+  #   - ~/.pyenv/versions/3.4.3
+  pre:
+    # TODO: move this entire thing to use the docker images instead
+    - rm -rf /home/ubuntu/core/node_modules
+    - sudo apt-get update; sudo apt-get install google-chrome-stable python2.7
+    - pip install --upgrade pip
+    - pip install -r requirements.txt
+    - npm install -g gulp selenium bower
+    - bower install 
+    - pyenv local 2.7.9; npm config set python python2.7; npm install 
+    # - npm install
+    - node_modules/webdriver-manager/bin/webdriver-manager update --standalone
+    - pyenv local 3.4.3; pyenv global 3.4.3
+    #- cd api; python manage.py migrate
+    # - node_modules/webdriver-manager/bin/webdriver-manager start:
+        # background: true
+    - cd app; gulp migrate --force
+    - cd app; gulp build_test
+    - cd app; gulp blaze
+    - cd app; gulp deploy_blaze
+test:
+  override:
+    - cd app; polytester --parallel $CIRCLE_NODE_INDEX $CIRCLE_NODE_TOTAL:
+        parallel: true
+notify:
+  webhooks:
+    - url: http://will.buddyup.org/api/circleci/deployed/
+
+deployment:
+  production:
+    branch: master
+    commands:
+        - git push git@heroku.com:buddyup-api.git master
+        - heroku run "cd app/api; python manage.py migrate --settings=envs.live" --app buddyup-api
+        - cd app; PRODUCTION_BUILD=true gulp push_aws
+        - cd app; PRODUCTION_BUILD=true gulp purge_cloudflare
+        - cd app; PRODUCTION_BUILD=true gulp deploy_blaze

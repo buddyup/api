@@ -1,0 +1,34 @@
+api: 
+    command: cd api; python manage.py test project.apps
+    wip_command: cd api; python manage.py test -a wip project.apps
+    watch_dir: api
+    watch_glob: "*.py"
+js:
+    command: ../node_modules/karma/bin/karma start frontends/app/src/tests/js/karma.conf.js
+    watch_dir: frontends/app/src/tests/js/jasmine
+    watch_glob: "*.js"
+# e2e:
+#     command: gulp protractor:app
+jshint:
+    command: ../node_modules/jshint/bin/jshint frontends/app/src frontends/dashboard/src frontends/groundcontrol/src frontends/common/js
+    watch_dir: frontends
+    watch_glob: "*.js"
+flake:
+    command: "flake8 --exclude=migrations api --ignore=F401,F403 --max-line-length=130"
+    watch_dir: api
+    watch_glob: "*.py"
+# dashboard_js:
+#     command: ../node_modules/karma/bin/karma start frontends/dashboard/src/tests/js/karma.conf.js
+#     watch_dir: frontends/dashboard/src/tests/js/jasmine
+#     watch_glob: "*.js"
+# dashboard_e2e:
+#     command: gulp protractor:dashboard
+groundcontrol_js:
+    command: ../node_modules/karma/bin/karma start frontends/groundcontrol/src/tests/js/karma.conf.js
+    watch_dir: frontends/groundcontrol/src/tests/js/jasmine
+    watch_glob: "*.js"
+# groundcontrol_e2e:
+#     command: gulp protractor:groundcontrol
+
+# rot:
+#     command: piprot --force -o

@@ -1,0 +1,1 @@
+Group at {{event.profile.where|safe}} about to start!

@@ -1,0 +1,36 @@
+# Everything
+# app
+.DS_Store
+.awspublish-buddyup-core-dev
+.awspublish-launch.buddyup.org
+.awspublish-tng.buddyup.org
+# .buildpacks
+# .dockerignore
+.git
+.gitignore
+.env
+# AUTHORS
+# Dockerfile
+# LICENSE
+# Procfile
+# README.md
+# api
+# bower.json
+# bower_components
+celerybeat-schedule
+# circle.yml
+# docker-compose.yml
+# frontends
+# gulpfile.js
+# native
+# node_modules
+# package.json
+# po
+# requirements.txt
+# requirements.unstable.txt
+# rules.json
+# rules.yml
+# runtime.txt
+source
+# tests.yml
+*.pyc

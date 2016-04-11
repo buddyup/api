@@ -1,0 +1,1 @@
+{{event.data.accepted_by_first_name}} {{event.data.accepted_by_last_name}} accepted your buddy request!

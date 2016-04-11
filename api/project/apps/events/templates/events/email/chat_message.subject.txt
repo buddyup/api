@@ -1,0 +1,1 @@
+{{event.first_name}} wrote in {% if event.data.group_id %}{{group.description}}{% else %}{{class.subject_code}} {{class.code}}{% endif %}

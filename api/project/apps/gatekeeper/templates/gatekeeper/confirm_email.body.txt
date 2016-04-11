@@ -1,0 +1,12 @@
+Thanks for signing up for BuddyUp!
+
+You're almost all set - just click the link below to confirm your email, and you'll be on your way.
+
+https://api.buddyup.org{% url 'gatekeeper:confirm_email' user.email_confirm_key %}
+
+As a reminder, your email address is {{user.email}}.
+
+
+Thanks,
+
+-Team BuddyUp

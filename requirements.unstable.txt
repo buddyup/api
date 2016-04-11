@@ -1,0 +1,30 @@
+boto3
+Django<1.9
+djangorestframework
+django-annoying
+django-celery-with-redis
+django-cors-headers
+django-extensions
+django-heroku-memcacheify
+django-heroku-postgresify
+django-localflavor
+django-nose
+-e git+https://github.com/jschneier/django-storages-redux.git#egg=django-storages-redux
+djrill
+firebase-token-generator
+django-ses-backend
+kombu>=3.0.30
+flake8
+newrelic
+gunicorn
+piprot
+Pillow
+polytester>=1.2.0
+psycopg2
+python-firebase
+rollbar
+sorl-thumbnail
+simple-crypt
+
+# Dev only
+ipython

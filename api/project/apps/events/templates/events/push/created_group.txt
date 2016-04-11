@@ -1,0 +1,1 @@
+{{event.data.subject_code|safe}} {{event.data.code|safe}}: {{event.first_name|safe}} started a study group. {{event.data.description|safe|truncatechars:200}}

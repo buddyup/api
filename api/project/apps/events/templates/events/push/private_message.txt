@@ -1,0 +1,1 @@
+{{event.first_name|safe}}: {{event.data.body|safe|truncatechars:200}}

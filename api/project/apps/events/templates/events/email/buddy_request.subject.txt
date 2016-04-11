@@ -1,0 +1,1 @@
+{{event.data.requested_by_first_name}} {{event.data.requested_by_last_name}} wants to buddy up!

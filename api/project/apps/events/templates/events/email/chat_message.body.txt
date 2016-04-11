@@ -1,0 +1,11 @@
+Hey {{user.first_name}},
+
+{{event.data.first_name}} {{event.data.last_name}} in {% if event.data.group_id %}the study group "{{group.description}}"{% else %}{{class.subject_code}} {{class.code}}{% endif %} wrote:
+
+{{event.data.body}}
+
+
+Pop open the app, or head over to https://app.buddyup.org to reply.
+
+
+Note: You can change which emails we send by opening the app, then going to profile, settings, and email preferences.

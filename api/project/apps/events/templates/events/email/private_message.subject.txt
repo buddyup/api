@@ -1,0 +1,1 @@
+{{event.first_name}} {{event.last_name}} sent you a message.

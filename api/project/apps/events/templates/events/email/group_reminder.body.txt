@@ -1,0 +1,7 @@
+Hey {{user.first_name}},
+
+The {% if event.profile.subject != 'open' %}{{event.profile.subject_code}} {{event.profile.code}} {% endif %}study group at {{event.profile.where}} is about to start!
+
+
+
+Note: You can change which emails we send by opening the app, then going to profile, settings, and email preferences.

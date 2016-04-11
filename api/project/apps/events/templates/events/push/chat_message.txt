@@ -1,0 +1,1 @@
+{{event.data.first_name|safe}} in {% if event.data.group_id %}{{group.description|safe}}{% else %}{{class.subject_code|safe}} {{class.code|safe}}{% endif %}: {{event.data.body|safe|truncatechars:200}}

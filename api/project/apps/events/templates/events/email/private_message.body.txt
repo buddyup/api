@@ -1,0 +1,10 @@
+Hey {{user.first_name}},
+
+{{event.first_name}} {{event.last_name}} sent you a message:
+
+{{event.data.body|safe}}
+
+Pop open the app, or head over to https://app.buddyup.org to reply.
+
+
+Note: You can change which emails we send by opening the app, then going to profile, settings, and email preferences.

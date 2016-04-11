@@ -1,0 +1,1 @@
+Group is about to start @{{event.profile.where|safe}}. {{event.profile.subject_code|safe}} {{event.profile.code|safe}}: "{{event.profile.description|safe|truncatechars:200}}"

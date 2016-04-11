@@ -1,0 +1,1 @@
+{% if event.data.subject != 'open' %}{{event.first_name}} {{event.last_name}} created a {{event.data.subject_code}} {{event.data.code}} study group{% else %}{{event.first_name}} {{event.last_name}} created a study group.{% endif %}

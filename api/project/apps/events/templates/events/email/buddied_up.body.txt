@@ -1,0 +1,10 @@
+Hey {{user.first_name}},
+
+{{event.data.accepted_by_first_name}} {{event.data.accepted_by_last_name}} accepted your buddy request!
+
+Pop open the app, or head over to https://app.buddyup.org to get talking!
+
+Happy Buddying!
+
+
+Note: You can change which emails we send by opening the app, then going to profile, settings, and email preferences.

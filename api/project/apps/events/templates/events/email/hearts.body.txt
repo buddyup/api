@@ -1,0 +1,9 @@
+Hey {{user.first_name}},
+
+{{event.first_name}} {{event.last_name}} hearted your activity. Sweet!
+
+Pop open the app, or head over to https://www.buddyup.org to check it out!
+
+
+Note: You can change which emails we send by opening the app, then going to profile, settings, and email preferences.
+

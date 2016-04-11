@@ -1,0 +1,1 @@
+Your {% if event.profile.subject != 'open' %}{{event.profile.subject_code}} {{event.profile.code}} {% endif %}Study Group about to start!

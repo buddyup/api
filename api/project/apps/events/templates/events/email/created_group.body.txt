@@ -1,0 +1,8 @@
+Hey {{user.first_name}},
+
+Your {{event.data.subject_code}} {{event.data.code}} classmate {{event.first_name}} {{event.last_name}} created a study group: "{{event.data.description}}"
+
+Pop open the app, or head over to https://app.buddyup.org to RSVP.
+
+
+Note: You can change which emails we send by opening the app, then going to profile, settings, and email preferences.
